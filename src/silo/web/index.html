@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SILO — local document search</title>
+<link rel="icon" href="mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="/" aria-label="SILO home">
+    <img src="mark.svg" alt="" width="34" height="34">
+    <span class="brand-name">SILO<span>SEARCH &amp; INDEXING · LOCAL-ONLY</span></span>
+  </a>
+  <nav class="tabs" aria-label="Views">
+    <button type="button" class="tab is-active" data-view="search">Search</button>
+    <button type="button" class="tab" data-view="library">Library</button>
+  </nav>
+  <div class="chips" id="chips" aria-live="polite"></div>
+</header>
+
+<main>
+  <section class="stage" aria-labelledby="stage-title">
+    <div class="grid-lines" aria-hidden="true"></div>
+    <div class="shell">
+      <p class="kicker"><span>01</span> Query the index</p>
+      <h1 id="stage-title">Find the page, <br><em>not just the file.</em></h1>
+      <form id="search-form" class="search" role="search">
+        <label class="sr-only" for="q">Search your documents</label>
+        <input id="q" name="q" type="search" autocomplete="off" spellcheck="false"
+               placeholder="Ask in plain language, or type an exact term…" autofocus>
+        <button type="submit" class="go">Search <span aria-hidden="true">↗</span></button>
+      </form>
+      <div class="controls">
+        <fieldset class="segmented" id="modes">
+          <legend class="sr-only">Retrieval mode</legend>
+          <label><input type="radio" name="mode" value="hybrid" checked><span>Hybrid</span></label>
+          <label><input type="radio" name="mode" value="semantic"><span>Semantic</span></label>
+          <label><input type="radio" name="mode" value="keyword"><span>Keyword</span></label>
+        </fieldset>
+        <label class="switch"><input type="checkbox" id="rerank" checked><span>Rerank</span></label>
+        <label class="switch" id="ask-switch" hidden><input type="checkbox" id="ask"><span>Answer with LLM</span></label>
+        <span class="readout" id="readout"></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="sheet" id="view-search">
+    <div class="shell split">
+      <div class="results-col">
+        <article class="answer" id="answer" hidden>
+          <header><span class="label">Generated answer</span><span class="label" id="answer-meta"></span></header>
+          <div class="answer-body" id="answer-body"></div>
+          <p class="answer-note">Generated from the numbered passages below. Check the source page before relying on it.</p>
+        </article>
+        <div id="empty" class="empty"></div>
+        <ol class="results" id="results"></ol>
+      </div>
+      <aside class="preview" id="preview" aria-label="Source preview">
+        <div class="preview-head"><span class="label" id="preview-label">Source</span><a id="preview-open" class="link" target="_blank" rel="noopener" hidden>Open original ↗</a></div>
+        <div class="preview-body" id="preview-body"><p class="preview-hint">Select a result to open the source at the matching page.</p></div>
+      </aside>
+    </div>
+  </section>
+
+  <section class="sheet" id="view-library" hidden>
+    <div class="shell">
+      <div class="library-head">
+        <div><p class="kicker dark"><span>02</span> Library</p><h2>What is in the index.</h2></div>
+        <div class="library-actions"><span class="label" id="job"></span><button type="button" class="go small" id="rescan">Re-scan folders</button></div>
+      </div>
+      <p class="store-line" id="store-line"></p>
+      <dl class="stats" id="stats"></dl>
+      <div class="table-wrap"><table class="docs"><thead><tr><th>Document</th><th>Pages</th><th>Passages</th><th>Parse time</th><th>Status</th></tr></thead><tbody id="docs"></tbody></table></div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot"><div class="shell foot-inner"><span id="foot-models"></span><span>SILO · open-source engine by <a href="https://parrytech.co" rel="noopener">Parry Technologies</a></span></div></footer>
+<script src="app.js"></script>
+</body>
+</html>

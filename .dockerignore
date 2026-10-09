@@ -1,0 +1,7 @@
+.venv
+.git
+.silo-dev
+sample-corpus
+tests
+docs
+**/__pycache__
