@@ -111,6 +111,19 @@ unshare -rn uv run sextant index sample-corpus      # Linux: same idea, empty ne
 To deploy on a machine that has never been online, run `sextant models pull` elsewhere and copy
 `~/.sextant/models` across. See [docs/air-gapped.md](docs/air-gapped.md).
 
+## Docker
+
+```bash
+docker build -t sextant .
+docker run --rm -v sextant-home:/data sextant models pull                      # online, once
+docker run --rm --network none -v sextant-home:/data -v /path/to/docs:/docs:ro \
+    sextant index /docs                                                        # no network at all
+docker run --rm -p 127.0.0.1:8321:8321 -v sextant-home:/data -v /path/to/docs:/docs:ro sextant
+```
+
+The image is CPU-only (about 3 GB; no CUDA libraries) and runs as a non-root user. Indexing
+and search have been run in it with `--network none`.
+
 ## Adding an LLM (optional)
 
 ```bash
