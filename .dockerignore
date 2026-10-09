@@ -1,0 +1,7 @@
+.venv
+.git
+.sextant-dev
+sample-corpus
+tests
+docs
+**/__pycache__
