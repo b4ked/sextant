@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Download a small, openly available PDF corpus for trying Sextant.
+# Download a small, openly available PDF corpus for trying SILO.
 # NIST publications are US Government works; the arXiv papers are fetched from arXiv
 # for local evaluation only and are not redistributed in this repository.
 set -euo pipefail
@@ -13,4 +13,4 @@ fetch nist-cybersecurity-framework-2.0.pdf    https://nvlpubs.nist.gov/nistpubs/
 fetch nist-zero-trust-architecture.pdf        https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-207.pdf
 fetch docling-technical-report.pdf            https://arxiv.org/pdf/2408.09869
 fetch attention-is-all-you-need.pdf           https://arxiv.org/pdf/1706.03762
-echo "Done. Next: sextant index $DEST"
+echo "Done. Next: silo index $DEST"

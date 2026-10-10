@@ -6,7 +6,7 @@ from functools import cached_property
 
 import numpy as np
 
-from sextant.config import Settings
+from silo.config import Settings
 
 
 class Embedder:

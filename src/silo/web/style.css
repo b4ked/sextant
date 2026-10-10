@@ -143,3 +143,6 @@ mark { background: #bfe6f6; color: inherit; padding: 0 1px; }
 .compact .stage .kicker { display: none; }
 .compact h1 { font-size: clamp(24px, 2.4vw, 32px); letter-spacing: -.045em; margin-bottom: 18px; }
 .compact h1 br { display: none; }
+.store-line { margin: -8px 0 26px; color: var(--muted); font-size: 13.5px; overflow-wrap: anywhere; }
+.store-line code { font: 12.5px var(--mono); background: #dbe8ee; padding: 2px 6px; color: var(--ink); }
+.docs td strong { font-weight: 600; }

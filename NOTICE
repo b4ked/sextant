@@ -1,13 +1,13 @@
-Sextant
+SILO
 Copyright 2026 Parry Technologies
 
 This product is licensed under the Apache License, Version 2.0.
 
 It bundles:
   - Space Grotesk (web interface font), Copyright 2020 The Space Grotesk Project
-    Authors, SIL Open Font License 1.1. See src/sextant/web/fonts/OFL.txt.
+    Authors, SIL Open Font License 1.1. See src/silo/web/fonts/OFL.txt.
 
-It downloads, on explicit request (`sextant models pull`), and does not redistribute:
+It downloads, on explicit request (`silo models pull`), and does not redistribute:
   - Docling layout, table-structure and OCR models (Docling project / RapidOCR)
   - BAAI/bge-small-en-v1.5 embedding model (MIT)
   - Xenova/ms-marco-MiniLM-L-6-v2 cross-encoder (Apache-2.0)

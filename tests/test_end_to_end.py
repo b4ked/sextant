@@ -8,11 +8,11 @@ import shutil
 import pytest
 from fastapi.testclient import TestClient
 
-from sextant.embed import Embedder
-from sextant.indexer import Indexer
-from sextant.search import Searcher
-from sextant.server import create_app
-from sextant.store import Store
+from silo.embed import Embedder
+from silo.indexer import Indexer
+from silo.search import Searcher
+from silo.server import create_app
+from silo.store import Store
 
 
 @pytest.fixture(scope="module")
@@ -81,10 +81,11 @@ def test_http_api(engine):
     client = TestClient(create_app(settings))
     status = client.get("/api/status").json()
     assert status["offline"] is True and status["llm"]["egress"] == "none"
+    assert status["index"]["read_only"] is False and status["index"]["store_id"]
     assert status["models"]["device"] == "cpu"
 
     page = client.get("/")
-    assert page.status_code == 200 and "Sextant" in page.text
+    assert page.status_code == 200 and "SILO" in page.text
     assert "default-src 'self'" in page.headers["content-security-policy"]
     assert "http://" not in page.text.replace("https://parrytech.co", "")
 
@@ -96,3 +97,95 @@ def test_http_api(engine):
     assert client.get("/api/documents/..%2F..%2Fetc%2Fpasswd/file").status_code == 404
     assert client.get("/api/search", params={"q": "x", "mode": "nope"}).status_code == 400
     assert client.post("/api/ask", json={"question": "anything"}).status_code == 409
+
+
+def test_store_can_be_copied_relocated_and_opened_read_only(engine, tmp_path):
+    """Take an index to another location, away from its documents, and still search it."""
+    from silo.config import load_settings
+    from silo.engine import open_engine
+    from silo.store import ReadOnlyStore, Store
+
+    settings, _, _, _, work, _ = engine
+    copy = tmp_path / "borrowed-index"
+    shutil.copytree(settings.index_dir, copy)
+
+    other = load_settings(settings.home)
+    other.index = str(copy)
+    other.embedding_model = "some/other-model"  # the store, not local config, decides
+    borrowed = open_engine(other, read_only=True)
+    assert other.embedding_model == settings.embedding_model and borrowed.notices
+    hit = borrowed.searcher.search("carry forward unused days", k=1).hits[0]
+    assert hit.rel_path == "leave-policy.pdf" and hit.file_available is True
+    with pytest.raises(ReadOnlyStore):
+        borrowed.store.set_meta("x", "y")
+
+    # Pretend the documents live elsewhere on the new machine.
+    writable = Store(other, read_only=False)
+    assert writable.relocate(str(work), str(tmp_path / "elsewhere")) == 2
+    moved = open_engine(other, read_only=True)
+    hit = moved.searcher.search("carry forward unused days", k=1).hits[0]
+    assert hit.file_available is False and "five unused days" in hit.text
+    assert moved.store.manifest()["store_id"] == engine[1].manifest()["store_id"]
+
+    client = TestClient(create_app(other))
+    status = client.get("/api/status").json()
+    assert status["index"]["path"] == str(copy)
+    assert client.get(f"/api/documents/{hit.doc_id}/file").status_code == 404
+    other.read_only = True
+    assert TestClient(create_app(other)).post("/api/index").status_code == 403
+
+
+def test_missing_store_read_only_is_a_clear_error(real_settings, tmp_path):
+    from silo.config import load_settings
+    from silo.store import Store, StoreNotFound
+
+    settings = load_settings(real_settings.home)
+    settings.index = str(tmp_path / "nothing-here")
+    with pytest.raises(StoreNotFound, match="silo index"):
+        Store(settings, read_only=True)
+    assert not (tmp_path / "nothing-here").exists()  # opening read-only creates nothing
+
+
+def test_mcp_server_over_stdio(engine):
+    """Drive the real `silo mcp` process the way an MCP client does."""
+    import asyncio
+    import json
+    import sys
+
+    from mcp import ClientSession, StdioServerParameters
+    from mcp.client.stdio import stdio_client
+
+    settings = engine[0]
+    env = {**os.environ, "SILO_HOME": str(settings.home), "SILO_INDEX": str(settings.index_dir)}
+
+    async def session():
+        params = StdioServerParameters(command=sys.executable, args=["-m", "silo.cli", "mcp"],
+                                       env=env)
+        async with stdio_client(params) as (read, write), ClientSession(read, write) as client:
+            await client.initialize()
+            names = {tool.name for tool in (await client.list_tools()).tools}
+
+            async def call(name, **arguments):
+                result = await client.call_tool(name, arguments)
+                failed = getattr(result, "is_error", getattr(result, "isError", False))
+                return failed, result.content[0].text
+
+            _, text = await call("search_documents", query="carry forward unused days", limit=2)
+            found = json.loads(text)["results"]
+            _, text = await call("get_passage_context", passage_id=found[0]["passage_id"])
+            context = json.loads(text)
+            _, text = await call("read_document", document_id=found[0]["document_id"], count=1)
+            reading = json.loads(text)
+            _, text = await call("index_status")
+            status = json.loads(text)
+            failed, message = await call("get_passage_context", passage_id="nonsense")
+            return names, found, context, reading, status, failed, message
+
+    names, found, context, reading, status, failed, message = asyncio.run(session())
+    assert names == {"search_documents", "get_passage_context", "read_document",
+                     "list_documents", "index_status"}
+    assert found[0]["file"] == "leave-policy.pdf" and found[0]["page"] == 2
+    assert any("five unused days" in p["text"] for p in context["passages"])
+    assert reading["total_passages"] >= 1 and reading["passages"][0]["position"] == 0
+    assert status["passages"] > 0 and status["store_id"]
+    assert failed and "passage_id should look like" in message

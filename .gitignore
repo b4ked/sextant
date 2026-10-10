@@ -9,5 +9,5 @@ build/
 .DS_Store
 # local data: never commit documents, indexes or models
 sample-corpus/
-.sextant/
-.sextant-dev/
+.silo/
+.silo-dev/

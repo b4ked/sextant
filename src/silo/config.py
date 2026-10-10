@@ -1,4 +1,4 @@
-"""Settings: defaults, then ``$SEXTANT_HOME/config.toml``, then ``SEXTANT_*`` env vars."""
+"""Settings: defaults, then ``$SILO_HOME/config.toml``, then ``SILO_*`` env vars."""
 
 from __future__ import annotations
 
@@ -9,12 +9,17 @@ from pathlib import Path
 
 
 def _default_home() -> Path:
-    return Path(os.environ.get("SEXTANT_HOME", Path.home() / ".sextant")).expanduser().resolve()
+    return Path(os.environ.get("SILO_HOME", Path.home() / ".silo")).expanduser().resolve()
 
 
 @dataclass
 class Settings:
     home: Path
+
+    # Which index store to use. Empty = "$SILO_HOME/index". Point this at any other
+    # store (another project's, or one on a shared drive) with --index or SILO_INDEX.
+    index: str = ""
+    read_only: bool = False  # never write to the store (for shared or borrowed indexes)
 
     # Retrieval models. Both run on CPU through ONNX Runtime.
     embedding_model: str = "BAAI/bge-small-en-v1.5"
@@ -61,6 +66,8 @@ class Settings:
 
     @property
     def index_dir(self) -> Path:
+        if self.index:
+            return Path(self.index).expanduser().resolve()
         return self.home / "index"
 
     @property
@@ -105,7 +112,7 @@ def load_settings(home: Path | None = None) -> Settings:
         target = type(getattr(settings, f.name))
         if f.name in file_values:
             setattr(settings, f.name, _coerce(file_values[f.name], target))
-        env = os.environ.get(f"SEXTANT_{f.name.upper()}")
+        env = os.environ.get(f"SILO_{f.name.upper()}")
         if env is not None and env != "":
             setattr(settings, f.name, _coerce(env, target))
     return settings

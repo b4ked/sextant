@@ -5,16 +5,16 @@ from pathlib import Path
 
 import pytest
 
-from sextant import models
-from sextant.config import load_settings
+from silo import models
+from silo.config import load_settings
 
-REAL_HOME = Path(os.environ.get("SEXTANT_HOME", Path.home() / ".sextant")).expanduser()
+REAL_HOME = Path(os.environ.get("SILO_HOME", Path.home() / ".silo")).expanduser()
 
 
 @pytest.fixture()
 def settings(tmp_path, monkeypatch):
     for key in list(os.environ):
-        if key.startswith("SEXTANT_") and key != "SEXTANT_HOME":
+        if key.startswith("SILO_") and key != "SILO_HOME":
             monkeypatch.delenv(key)
     return load_settings(tmp_path / "home")
 
@@ -69,7 +69,7 @@ def real_settings(tmp_path_factory):
     """Settings backed by the real downloaded models, with a throwaway index."""
     probe = load_settings(REAL_HOME)
     if any(not m.present for m in models.status(probe)):
-        pytest.skip("models not downloaded; run `sextant models pull`")
+        pytest.skip("models not downloaded; run `silo models pull`")
     home = tmp_path_factory.mktemp("home")
     (home / "models").symlink_to(REAL_HOME / "models")
     return load_settings(home)

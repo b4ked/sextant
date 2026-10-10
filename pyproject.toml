@@ -1,12 +1,12 @@
 [project]
-name = "sextant-search"
-version = "0.1.0"
-description = "Local-first, CPU-only, air-gapped document search: Docling parsing, hybrid BM25 + vector retrieval, optional LLM answers."
+name = "silo-search"
+version = "0.2.0"
+description = "SILO — Search and Indexing, Local-Only. CPU-only, air-gapped document search: Docling parsing, hybrid BM25 + vector retrieval, optional LLM answers."
 readme = "README.md"
 license = "Apache-2.0"
 authors = [{ name = "Parry Technologies", email = "parryh@parrytech.co" }]
 requires-python = ">=3.11,<3.14"
-keywords = ["search", "rag", "hybrid-search", "docling", "lancedb", "air-gapped", "on-prem", "local-first"]
+keywords = ["search", "rag", "mcp", "hybrid-search", "docling", "lancedb", "air-gapped", "on-prem", "local-first"]
 dependencies = [
     "docling>=2.40",
     "fastembed>=0.6",
@@ -18,16 +18,17 @@ dependencies = [
     "rich>=13",
     "httpx>=0.27",
     "huggingface-hub>=0.26",
+    "mcp>=1.2",
     "torch>=2.4",
     "torchvision>=0.19",
 ]
 
 [project.urls]
-Homepage = "https://parrytech.co/blog/sextant-air-gapped-document-search"
-Repository = "https://github.com/b4ked/sextant"
+Homepage = "https://parrytech.co/blog/silo-air-gapped-document-search"
+Repository = "https://github.com/parrytechnologies/silo"
 
 [project.scripts]
-sextant = "sextant.cli:app"
+silo = "silo.cli:app"
 
 [dependency-groups]
 dev = ["pytest>=8", "reportlab>=4", "ruff>=0.8"]
@@ -37,9 +38,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/sextant"]
+packages = ["src/silo"]
 
-# Linux wheels of torch default to multi-gigabyte CUDA builds. Sextant is CPU-only,
+# Linux wheels of torch default to multi-gigabyte CUDA builds. SILO is CPU-only,
 # so pin Linux to the CPU wheel index. macOS and Windows wheels are already CPU/MPS.
 [[tool.uv.index]]
 name = "pytorch-cpu"

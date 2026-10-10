@@ -1,6 +1,6 @@
 .venv
 .git
-.sextant-dev
+.silo-dev
 sample-corpus
 tests
 docs

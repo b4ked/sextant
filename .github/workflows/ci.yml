@@ -11,5 +11,5 @@ jobs:
       - run: uv sync --python 3.12
       - run: uv run ruff check src tests
       # Unit tests need no models. The end-to-end tests skip themselves unless
-      # `sextant models pull` has been run.
+      # `silo models pull` has been run.
       - run: uv run pytest -q

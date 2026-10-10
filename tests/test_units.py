@@ -6,12 +6,12 @@ import os
 
 import numpy as np
 
-from sextant import models
-from sextant.config import load_settings
-from sextant.indexer import discover
-from sextant.llm import build_messages, egress
-from sextant.search import Hit, Searcher, SearchResult, reading_order
-from sextant.store import Store
+from silo import models
+from silo.config import load_settings
+from silo.indexer import discover
+from silo.llm import build_messages, egress
+from silo.search import Hit, Searcher, SearchResult, reading_order
+from silo.store import Store
 
 
 def test_offline_is_the_default():
@@ -24,7 +24,7 @@ def test_settings_precedence(tmp_path, monkeypatch):
     home = tmp_path / "h"
     home.mkdir()
     (home / "config.toml").write_text('chunk_tokens = 256\nrerank = false\nllm_model = "a"\n')
-    monkeypatch.setenv("SEXTANT_LLM_MODEL", "b")
+    monkeypatch.setenv("SILO_LLM_MODEL", "b")
     s = load_settings(home)
     assert s.chunk_tokens == 256 and s.rerank is False
     assert s.llm_model == "b"  # env beats file
@@ -35,7 +35,7 @@ def test_missing_models_is_a_clear_error(settings):
     try:
         models.require(settings)
     except models.ModelsMissing as exc:
-        assert "sextant models pull" in str(exc)
+        assert "silo models pull" in str(exc)
     else:
         raise AssertionError("expected ModelsMissing")
 
@@ -86,7 +86,7 @@ class _FakeStore:
         return self.kw[:limit]
 
     def documents_by_ids(self, ids):
-        return {"d": {"title": "Doc", "rel_path": "doc.pdf", "suffix": ".pdf"}}
+        return {"d": {"title": "Doc", "rel_path": "doc.pdf", "suffix": ".pdf", "path": "/x"}}
 
 
 def test_reciprocal_rank_fusion(settings):
@@ -112,7 +112,7 @@ def test_catalogue_roundtrip_and_model_guard(settings):
     try:
         store.check_embedding("model-b", 384)
     except Exception as exc:
-        assert "sextant reset" in str(exc)
+        assert "silo reset" in str(exc)
     else:
         raise AssertionError("expected IndexMismatch")
 
@@ -126,3 +126,28 @@ def test_reading_order_groups_by_document():
     ordered = reading_order(result)
     assert [h.chunk_id for h in ordered.hits] == ["b:2", "b:7", "a:1", "a:3"]
     assert [h.rank for h in ordered.hits] == [1, 2, 3, 4]
+
+
+def test_index_store_can_be_pointed_elsewhere(tmp_path, monkeypatch):
+    home = tmp_path / "h"
+    assert load_settings(home).index_dir == home.resolve() / "index"
+    monkeypatch.setenv("SILO_INDEX", str(tmp_path / "shared" / "team-index"))
+    monkeypatch.setenv("SILO_READ_ONLY", "1")
+    settings = load_settings(home)
+    assert settings.index_dir == (tmp_path / "shared" / "team-index").resolve()
+    assert settings.read_only is True
+    assert settings.models_dir == home.resolve() / "models"  # models stay with the machine
+
+
+def test_store_use_writes_and_clears_config(tmp_path):
+    from silo.cli import _write_config
+
+    home = tmp_path / "h"
+    home.mkdir()
+    (home / "config.toml").write_text('ocr = true\nindex = "/old"\n')
+    _write_config(home, {"index": "/srv/team index", "read_only": True})
+    settings = load_settings(home)
+    assert settings.index == "/srv/team index" and settings.read_only and settings.ocr
+    _write_config(home, {"index": None, "read_only": None})
+    settings = load_settings(home)
+    assert settings.index == "" and not settings.read_only and settings.ocr

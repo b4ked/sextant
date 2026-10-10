@@ -2,28 +2,28 @@
 
 ## What the open engine does on its own
 
-A single person, or a small trusted team on one host, can run Sextant as it is.
+A single person, or a small trusted team on one host, can run SILO as it is.
 
 **Keep the index fresh with cron.** Indexing is incremental and exits non-zero if any file
 failed, so it is safe to schedule:
 
 ```cron
 # every night at 01:30: pick up new, changed and deleted files
-30 1 * * *  SEXTANT_HOME=/srv/sextant /opt/sextant/.venv/bin/sextant index /srv/documents --quiet >> /var/log/sextant-index.log 2>&1
+30 1 * * *  SILO_HOME=/srv/silo /opt/silo/.venv/bin/silo index /srv/documents --quiet >> /var/log/silo-index.log 2>&1
 ```
 
 **Keep the interface running with systemd.**
 
 ```ini
-# /etc/systemd/system/sextant.service
+# /etc/systemd/system/silo.service
 [Unit]
-Description=Sextant document search
+Description=SILO document search
 After=network.target
 
 [Service]
-User=sextant
-Environment=SEXTANT_HOME=/srv/sextant
-ExecStart=/opt/sextant/.venv/bin/sextant serve
+User=silo
+Environment=SILO_HOME=/srv/silo
+ExecStart=/opt/silo/.venv/bin/silo serve
 Restart=on-failure
 # belt and braces: the service may only talk to itself
 IPAddressDeny=any
@@ -32,6 +32,17 @@ IPAddressAllow=localhost
 [Install]
 WantedBy=multi-user.target
 ```
+
+**Share one index with a small team.** Build the store on one machine, put the directory on a
+shared drive, and have everyone open it read-only:
+
+```bash
+silo store use /Volumes/team/silo-index --read-only
+silo serve
+```
+
+This suits a handful of trusted people who are all allowed to see every indexed document. It
+is not access control: anyone who can read the directory can read all the extracted text.
 
 Stop the service while a scheduled index run writes, or accept that results update when the
 run finishes: the engine does not coordinate concurrent writers.
@@ -53,7 +64,7 @@ department or a company, these need answers, and they are specific to each organ
 
 ## The service
 
-Parry Technologies deploys Sextant on an organisation's own infrastructure and builds the layer
+Parry Technologies deploys SILO on an organisation's own infrastructure and builds the layer
 above: authentication and permission-aware search, connectors and scheduled indexing,
 multi-user serving, a local or hosted LLM, and an evaluation on your documents so quality is
 measured rather than assumed. The engine stays open source, so nothing about the core is a

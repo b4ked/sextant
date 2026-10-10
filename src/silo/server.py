@@ -14,14 +14,13 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from sextant import __version__
-from sextant._offline import network_allowed
-from sextant.config import Settings
-from sextant.embed import Embedder
-from sextant.indexer import Indexer
-from sextant.llm import LLMError, egress, stream_answer
-from sextant.search import MODES, Searcher, reading_order
-from sextant.store import Store
+from silo import __version__
+from silo._offline import network_allowed
+from silo.config import Settings
+from silo.engine import open_engine
+from silo.indexer import Indexer
+from silo.llm import LLMError, egress, stream_answer
+from silo.search import MODES, reading_order
 
 WEB_DIR = Path(__file__).parent / "web"
 
@@ -40,9 +39,8 @@ class AskRequest(BaseModel):
 
 
 def create_app(settings: Settings) -> FastAPI:
-    store = Store(settings)
-    embedder = Embedder(settings)
-    searcher = Searcher(settings, store, embedder)
+    engine = open_engine(settings)
+    store, embedder, searcher = engine.store, engine.embedder, engine.searcher
 
     def _safe_warm() -> None:
         try:
@@ -55,7 +53,7 @@ def create_app(settings: Settings) -> FastAPI:
         threading.Thread(target=_safe_warm, daemon=True).start()
         yield
 
-    app = FastAPI(title="Sextant", version=__version__, docs_url=None, redoc_url=None,
+    app = FastAPI(title="SILO", version=__version__, docs_url=None, redoc_url=None,
                   openapi_url="/api/openapi.json", lifespan=lifespan)
     job_lock = threading.Lock()
     job: dict = {"running": False, "current": "", "done": 0, "total": 0, "last": None,
@@ -80,6 +78,12 @@ def create_app(settings: Settings) -> FastAPI:
             "offline": not network_allowed(),
             "stats": stats,
             "roots": store.roots(),
+            "index": {
+                "path": str(settings.index_dir),
+                "read_only": store.read_only,
+                "store_id": store.get_meta("store_id"),
+                "size_bytes": store.size_bytes(),
+            },
             "models": {
                 "embedding": settings.embedding_model,
                 "reranker": settings.reranker_model if settings.rerank else None,
@@ -105,14 +109,21 @@ def create_app(settings: Settings) -> FastAPI:
     def documents() -> dict:
         keys = ("doc_id", "rel_path", "title", "suffix", "size", "pages", "chunks", "status",
                 "error", "parse_seconds", "indexed_at")
-        return {"documents": [{k: row[k] for k in keys} for row in store.documents()]}
+        return {"documents": [
+            {**{k: row[k] for k in keys}, "file_available": Path(row["path"]).is_file()}
+            for row in store.documents()
+        ]}
 
     @app.get("/api/documents/{doc_id}/file")
     def document_file(doc_id: str):
         # Only files in the catalogue can be served; the client never supplies a path.
         row = store.document(doc_id)
-        if row is None or not Path(row["path"]).is_file():
+        if row is None:
             raise HTTPException(404, "document not found")
+        if not Path(row["path"]).is_file():
+            raise HTTPException(
+                404, "The source file is not available on this machine. The index still "
+                     "holds its text; use `silo store relocate` if the files have moved.")
         path = Path(row["path"])
         media = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
         return FileResponse(path, media_type=media, content_disposition_type="inline",
@@ -148,9 +159,11 @@ def create_app(settings: Settings) -> FastAPI:
 
     @app.post("/api/index")
     def reindex():
+        if store.read_only:
+            raise HTTPException(403, "This index store is open read-only.")
         roots = store.roots()
         if not roots:
-            raise HTTPException(409, "Nothing indexed yet. Run `sextant index <folder>` first.")
+            raise HTTPException(409, "Nothing indexed yet. Run `silo index <folder>` first.")
         if not job_lock.acquire(blocking=False):
             return JSONResponse({"started": False, "reason": "already running"}, status_code=202)
 

@@ -1,8 +1,8 @@
 """The air-gap switch.
 
-Sextant never needs the network to index or search. The only code path that
-downloads anything is ``sextant models pull``, which runs in a child process
-with ``SEXTANT_ALLOW_NETWORK=1``. Every other process forces the model
+SILO never needs the network to index or search. The only code path that
+downloads anything is ``silo models pull``, which runs in a child process
+with ``SILO_ALLOW_NETWORK=1``. Every other process forces the model
 libraries into offline mode, so a missing model is a clear local error rather
 than a silent download attempt.
 """
@@ -13,7 +13,7 @@ import logging
 import os
 import warnings
 
-ALLOW_ENV = "SEXTANT_ALLOW_NETWORK"
+ALLOW_ENV = "SILO_ALLOW_NETWORK"
 
 
 def network_allowed() -> bool:

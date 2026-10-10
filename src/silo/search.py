@@ -5,10 +5,11 @@ from __future__ import annotations
 import math
 import time
 from dataclasses import asdict, dataclass
+from pathlib import Path
 
-from sextant.config import Settings
-from sextant.embed import Embedder, Reranker
-from sextant.store import Store
+from silo.config import Settings
+from silo.embed import Embedder, Reranker
+from silo.store import Store
 
 MODES = ("hybrid", "semantic", "keyword")
 
@@ -32,6 +33,7 @@ class Hit:
     bm25: float | None = None
     rrf: float | None = None
     rerank: float | None = None
+    file_available: bool = True  # False when the index is used away from its source files
 
 
 @dataclass
@@ -154,6 +156,7 @@ class Searcher:
                     vector_rank=entry.get("vector_rank"), keyword_rank=entry.get("keyword_rank"),
                     vector_similarity=entry.get("vector_similarity"), bm25=entry.get("bm25"),
                     rrf=entry["rrf"], rerank=entry.get("rerank"),
+                    file_available=bool(doc) and Path(doc["path"]).is_file(),
                 )
             )
         timings = {name: round(ms, 1) for name, ms in timings.items()}

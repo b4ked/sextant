@@ -1,5 +1,5 @@
 "use strict";
-// Sextant web interface. No frameworks, no build step, no external requests.
+// SILO web interface. No frameworks, no build step, no external requests.
 const $ = (id) => document.getElementById(id);
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
 const state = { status: null, hits: [], active: -1, controller: null, poll: null };
@@ -21,6 +21,7 @@ async function loadStatus() {
   if (egress === "external") chips.append(chip("LLM: external endpoint", "warn keep"));
   else if (egress === "none") chips.append(chip(s.offline ? "Offline · no egress" : "No LLM · no egress", "keep"));
   else chips.append(chip("LLM on " + egress + " network", "keep"));
+  if (s.index.read_only) chips.append(chip("Read-only index"));
   chips.append(chip("CPU · " + s.models.threads + " threads"), chip(s.stats.indexed + " docs · " + s.stats.chunks + " passages"));
   $("ask-switch").hidden = !s.llm.enabled;
   $("foot-models").textContent = "Embeddings " + s.models.embedding + (s.models.reranker ? " · Reranker " + s.models.reranker : "") + (s.llm.enabled ? " · LLM " + s.llm.model : "") + " · v" + s.version;
@@ -35,7 +36,7 @@ function renderEmpty(message) {
   if (message) { box.append(el("h2", null, "No matching passages."), el("p", null, message)); return; }
   if (s && s.stats.chunks === 0) {
     box.append(el("h2", null, "The index is empty."));
-    const p = el("p"); p.append("Point Sextant at a folder from a terminal, then come back: ", el("code", null, "sextant index /path/to/documents")); box.append(p); return;
+    const p = el("p"); p.append("Point SILO at a folder from a terminal, then come back: ", el("code", null, "silo index /path/to/documents")); box.append(p); return;
   }
   box.append(el("h2", null, "Ready when you are."), el("p", null, "Hybrid mode runs a keyword (BM25) search and a semantic vector search side by side, fuses the two rankings, then reranks the best candidates. Every result links to the page it came from."));
   const row = el("div", "examples");
@@ -87,11 +88,12 @@ function selectHit(i, fromKeyboardOrTitle) {
   document.querySelectorAll(".hit.is-active").forEach((n) => n.classList.remove("is-active"));
   const node = $("hit-" + (i + 1)); node.classList.add("is-active"); state.active = i;
   const url = fileUrl(h);
-  if (getComputedStyle($("preview")).display === "none") { if (fromKeyboardOrTitle) window.open(url, "_blank", "noopener"); return; }
+  if (getComputedStyle($("preview")).display === "none") { if (fromKeyboardOrTitle && h.file_available) window.open(url, "_blank", "noopener"); return; }
   $("preview-label").textContent = h.rel_path + (h.page_start ? " · " + pageLabel(h) : "");
-  const link = $("preview-open"); link.href = url; link.hidden = false;
+  const link = $("preview-open"); link.href = url; link.hidden = !h.file_available;
   const body = $("preview-body"); body.replaceChildren();
-  if (h.suffix === ".pdf") { const frame = el("iframe"); frame.title = "Source document: " + h.rel_path; frame.src = url; body.append(frame); }
+  if (!h.file_available) body.append(el("div", "preview-text", "The source file is not on this machine, so this is the indexed text.\n\n" + (h.headings ? h.headings + "\n\n" : "") + h.text));
+  else if (h.suffix === ".pdf") { const frame = el("iframe"); frame.title = "Source document: " + h.rel_path; frame.src = url; body.append(frame); }
   else body.append(el("div", "preview-text", (h.headings ? h.headings + "\n\n" : "") + h.text));
 }
 
@@ -154,15 +156,18 @@ async function loadLibrary() {
   const [s, d] = await Promise.all([loadStatus(), api("/api/documents").then((r) => r.json())]);
   const stats = $("stats"); stats.replaceChildren();
   [["Documents", s.stats.docs], ["Pages", s.stats.pages], ["Passages", s.stats.chunks], ["Source size", fmtBytes(s.stats.bytes)]].forEach(([k, v]) => { const div = el("div"); div.append(el("dt", null, k), el("dd", null, String(v))); stats.append(div); });
+  const line = $("store-line"); line.replaceChildren();
+  line.append("Index store ", el("code", null, s.index.path), " · " + fmtBytes(s.index.size_bytes) + (s.index.store_id ? " · id " + s.index.store_id : "") + (s.index.read_only ? " · read-only" : ""));
+  $("rescan").hidden = s.index.read_only;
   const body = $("docs"); body.replaceChildren();
   d.documents.forEach((doc) => {
-    const tr = el("tr"), name = el("td"), a = el("a", null, doc.title || doc.rel_path);
-    a.href = "/api/documents/" + encodeURIComponent(doc.doc_id) + "/file"; a.target = "_blank"; a.rel = "noopener";
-    name.append(a, el("small", null, doc.rel_path + " · " + fmtBytes(doc.size) + (doc.error ? " · " + doc.error : "")));
+    const tr = el("tr"), name = el("td"), a = el(doc.file_available ? "a" : "strong", null, doc.title || doc.rel_path);
+    if (doc.file_available) { a.href = "/api/documents/" + encodeURIComponent(doc.doc_id) + "/file"; a.target = "_blank"; a.rel = "noopener"; }
+    name.append(a, el("small", null, doc.rel_path + " · " + fmtBytes(doc.size) + (doc.file_available ? "" : " · source file not on this machine") + (doc.error ? " · " + doc.error : "")));
     const status = el("td"); status.append(el("span", "status " + doc.status, doc.status));
     tr.append(name, el("td", null, doc.pages || "—"), el("td", null, String(doc.chunks)), el("td", null, doc.parse_seconds.toFixed(1) + " s"), status); body.append(tr);
   });
-  if (!d.documents.length) { const tr = el("tr"), td = el("td", null, "Nothing indexed yet. Run: sextant index /path/to/documents"); td.colSpan = 5; tr.append(td); body.append(tr); }
+  if (!d.documents.length) { const tr = el("tr"), td = el("td", null, "Nothing indexed yet. Run: silo index /path/to/documents"); td.colSpan = 5; tr.append(td); body.append(tr); }
 }
 
 function renderJob(job) {

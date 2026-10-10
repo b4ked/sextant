@@ -9,12 +9,12 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from sextant.config import Settings
-from sextant.embed import Embedder
-from sextant.parse import Parser, supported_suffixes
-from sextant.store import Store
+from silo.config import Settings
+from silo.embed import Embedder
+from silo.parse import Parser, supported_suffixes
+from silo.store import Store
 
-SKIP_DIRS = {".git", ".svn", "node_modules", "__pycache__", ".venv", ".sextant"}
+SKIP_DIRS = {".git", ".svn", "node_modules", "__pycache__", ".venv", ".silo"}
 
 
 @dataclass
@@ -121,8 +121,9 @@ class Indexer:
 
     def _index_one(self, path: Path, base: Path, force: bool) -> IndexEvent:
         stat = path.stat()
-        doc_id = _doc_id(path)
         existing = self.store.document_by_path(str(path))
+        # Keep a document's id stable even if the store was relocated from another path.
+        doc_id = existing["doc_id"] if existing is not None else _doc_id(path)
         done = existing is not None and existing["status"] in ("indexed", "empty")
 
         if done and not force and existing["size"] == stat.st_size:

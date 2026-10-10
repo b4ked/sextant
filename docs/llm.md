@@ -3,23 +3,23 @@
 Search works without one. An LLM adds a written answer with numbered citations on top of the
 same retrieval.
 
-Sextant speaks the OpenAI `/chat/completions` protocol with streaming. Set two values, by
-environment variable or in `$SEXTANT_HOME/config.toml`:
+SILO speaks the OpenAI `/chat/completions` protocol with streaming. Set two values, by
+environment variable or in `$SILO_HOME/config.toml`:
 
-| Endpoint | `SEXTANT_LLM_BASE_URL` | `SEXTANT_LLM_MODEL` |
+| Endpoint | `SILO_LLM_BASE_URL` | `SILO_LLM_MODEL` |
 |---|---|---|
 | Ollama (same machine) | `http://localhost:11434/v1` | e.g. `gemma4:e2b` |
 | llama.cpp `llama-server` | `http://localhost:8080/v1` | the loaded model's name |
 | LM Studio | `http://localhost:1234/v1` | as shown in LM Studio |
 | vLLM on an internal server | `http://10.0.0.12:8000/v1` | the served model id |
-| Hosted provider | the provider's OpenAI-compatible URL | provider model id, plus `SEXTANT_LLM_API_KEY` |
+| Hosted provider | the provider's OpenAI-compatible URL | provider model id, plus `SILO_LLM_API_KEY` |
 
 ```bash
-export SEXTANT_LLM_BASE_URL=http://localhost:11434/v1
-export SEXTANT_LLM_MODEL=gemma4:e2b
-sextant doctor      # → LLM: gemma4:e2b at http://localhost:11434/v1 (loopback address)
-sextant ask "What are the tenets of zero trust?"
-sextant serve       # the interface now shows "Answer with LLM"
+export SILO_LLM_BASE_URL=http://localhost:11434/v1
+export SILO_LLM_MODEL=gemma4:e2b
+silo doctor      # → LLM: gemma4:e2b at http://localhost:11434/v1 (loopback address)
+silo ask "What are the tenets of zero trust?"
+silo serve       # the interface now shows "Answer with LLM"
 ```
 
 ## What is sent
@@ -27,7 +27,7 @@ sextant serve       # the interface now shows "Answer with LLM"
 Only the question and the retrieved passages (8 by default, `llm_context_chunks`), each with
 its file name, page and heading. Never whole documents, never the index.
 
-Sextant classifies the endpoint as `loopback`, `private` or `external` and shows it in
+SILO classifies the endpoint as `loopback`, `private` or `external` and shows it in
 `doctor`, in `ask`, and as a status chip in the interface. An external endpoint means those
 passages leave your network; that is a data-handling decision, not a technical one.
 

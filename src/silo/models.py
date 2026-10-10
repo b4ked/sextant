@@ -8,8 +8,8 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from sextant._offline import ALLOW_ENV, network_allowed
-from sextant.config import Settings
+from silo._offline import ALLOW_ENV, network_allowed
+from silo.config import Settings
 
 
 class ModelsMissing(RuntimeError):
@@ -68,7 +68,7 @@ def require(settings: Settings) -> None:
         names = ", ".join(m.name for m in missing)
         raise ModelsMissing(
             f"Models not found under {settings.models_dir}: {names}.\n"
-            "Run `sextant models pull` on a machine with internet access, then copy "
+            "Run `silo models pull` on a machine with internet access, then copy "
             f"{settings.models_dir} to this machine if it is air-gapped."
         )
 
@@ -77,15 +77,15 @@ def pull_in_subprocess(settings: Settings) -> int:
     """Run the download in a child process that is allowed to use the network."""
     env = dict(os.environ)
     env[ALLOW_ENV] = "1"
-    env["SEXTANT_HOME"] = str(settings.home)
+    env["SILO_HOME"] = str(settings.home)
     for key in ("HF_HUB_OFFLINE", "TRANSFORMERS_OFFLINE", "HF_DATASETS_OFFLINE"):
         env.pop(key, None)
-    return subprocess.call([sys.executable, "-m", "sextant.models"], env=env)
+    return subprocess.call([sys.executable, "-m", "silo.models"], env=env)
 
 
 def _pull(settings: Settings) -> None:
     if not network_allowed():
-        raise RuntimeError("model download requires SEXTANT_ALLOW_NETWORK=1")
+        raise RuntimeError("model download requires SILO_ALLOW_NETWORK=1")
     settings.docling_dir.mkdir(parents=True, exist_ok=True)
     settings.fastembed_dir.mkdir(parents=True, exist_ok=True)
 
@@ -111,10 +111,10 @@ def _pull(settings: Settings) -> None:
     from fastembed.rerank.cross_encoder import TextCrossEncoder
 
     TextCrossEncoder(settings.reranker_model, cache_dir=str(settings.fastembed_dir))
-    print("Done. Every other sextant command now runs without network access.", flush=True)
+    print("Done. Every other silo command now runs without network access.", flush=True)
 
 
 if __name__ == "__main__":
-    from sextant.config import load_settings
+    from silo.config import load_settings
 
     _pull(load_settings())

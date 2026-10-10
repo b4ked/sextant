@@ -15,8 +15,8 @@ from urllib.parse import urlparse
 
 import httpx
 
-from sextant.config import Settings
-from sextant.search import Hit
+from silo.config import Settings
+from silo.search import Hit
 
 SYSTEM_PROMPT = (
     "You answer questions about a document collection. You are given numbered source "
@@ -68,7 +68,7 @@ def build_messages(question: str, hits: list[Hit]) -> list[dict]:
 
 def stream_answer(settings: Settings, question: str, hits: list[Hit]) -> Iterator[str]:
     if not settings.llm_enabled:
-        raise LLMError("No LLM configured. Set SEXTANT_LLM_BASE_URL and SEXTANT_LLM_MODEL.")
+        raise LLMError("No LLM configured. Set SILO_LLM_BASE_URL and SILO_LLM_MODEL.")
     headers = {"Content-Type": "application/json"}
     if settings.llm_api_key:
         headers["Authorization"] = f"Bearer {settings.llm_api_key}"

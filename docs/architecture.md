@@ -1,17 +1,17 @@
 # Architecture
 
-Sextant is one Python package and one directory of data. This note explains each stage and
+SILO is one Python package and one directory of data. This note explains each stage and
 the decisions behind it.
 
 ## Data layout
 
 ```
-$SEXTANT_HOME (default ~/.sextant)
+$SILO_HOME (default ~/.silo)
 ├── config.toml              optional settings
-├── models/                  written only by `sextant models pull`
+├── models/                  written only by `silo models pull`; stays with the machine
 │   ├── docling/             layout, TableFormer, RapidOCR weights
 │   └── fastembed/           embedding + reranker ONNX files
-└── index/                   safe to delete; rebuilt by `sextant index`
+└── index/                   the default index store; any other directory can be used instead
     ├── catalogue.sqlite     one row per document: path, hash, pages, status, errors
     └── lance/               passages, vectors and the BM25 index (LanceDB)
 ```
@@ -28,7 +28,7 @@ Your documents are never copied or modified. The index stores extracted text, so
    from an indexed folder are removed from the index.
 3. **Parse.** Docling converts the file to a structured document. For PDFs this runs a layout
    model (headings, paragraphs, lists, tables, reading order) and TableFormer for table
-   structure. Sextant pins the accelerator to `cpu`, so behaviour is identical on a laptop
+   structure. SILO pins the accelerator to `cpu`, so behaviour is identical on a laptop
    and a server and no GPU is picked up implicitly. OCR (RapidOCR) is opt-in because most
    business PDFs already contain text and OCR is the slowest stage.
 4. **Chunk.** Docling's `HybridChunker` splits along document structure, merges undersized
@@ -40,7 +40,7 @@ Your documents are never copied or modified. The index stores extracted text, so
 6. **Store.** Passages go into LanceDB; the catalogue row is updated. After the run the BM25
    index is rebuilt and the table compacted.
 
-One failed file never stops a run. It is recorded with its error and shown by `sextant status`
+One failed file never stops a run. It is recorded with its error and shown by `silo status`
 and the Library view.
 
 ## Search
@@ -74,8 +74,26 @@ three passages is much easier for a small model to use when it arrives in sequen
 | `reranker_model` | `Xenova/ms-marco-MiniLM-L-6-v2` | `jinaai/jina-reranker-v1-tiny-en`, `BAAI/bge-reranker-v2-m3-int8` (multilingual, heavier) |
 
 Any model supported by fastembed works. Changing the embedding model requires
-`sextant reset` and a re-index; Sextant refuses to mix vectors from different models. The
+`silo reset` and a re-index; SILO refuses to mix vectors from different models. The
 defaults are English-focused: for other languages change both models.
+
+## Modules
+
+| Module | Role |
+|---|---|
+| `_offline.py` | Forces model libraries offline before they load |
+| `config.py` | Settings from defaults, `config.toml`, environment |
+| `models.py` | The one download step; presence checks |
+| `parse.py` | Docling conversion and chunking, CPU-pinned |
+| `embed.py` | ONNX embedding and reranking |
+| `store.py` | An index store: SQLite catalogue + LanceDB table; read-only mode; relocation |
+| `engine.py` | Opens a store and adopts the models it was built with |
+| `indexer.py` | Incremental indexing |
+| `search.py` | Hybrid retrieval, fusion, reranking |
+| `llm.py` | Optional OpenAI-compatible answer generation |
+| `server.py` + `web/` | JSON API and the self-contained interface |
+| `mcp_server.py` | MCP tools over stdio |
+| `cli.py` | The `silo` command |
 
 ## Known limits
 

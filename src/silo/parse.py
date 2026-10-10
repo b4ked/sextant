@@ -6,7 +6,7 @@ import io
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from sextant.config import Settings
+from silo.config import Settings
 
 # Formats handled without any model (Docling's simple pipeline) plus PDF.
 TEXT_SUFFIXES = {".txt", ".text", ".log"}
@@ -74,7 +74,7 @@ class Parser:
             do_table_structure=s.tables,
             document_timeout=s.document_timeout,
             enable_remote_services=False,
-            # Sextant's promise is "runs on the CPU you already have": never pick up
+            # SILO's promise is "runs on the CPU you already have": never pick up
             # CUDA or Apple MPS implicitly, so behaviour is the same on every machine.
             accelerator_options=AcceleratorOptions(
                 device=AcceleratorDevice.CPU, num_threads=s.num_threads
